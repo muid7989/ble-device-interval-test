@@ -8,11 +8,11 @@ const CANVAS_H = 960;
 const GRID_SIZE = 64;
 
 const BUTTON_OFFSET = 8;
-const BUTTON_W = GRID_SIZE*2;
-const BUTTON_H = GRID_SIZE*1;
-const BUTTON_X = GRID_SIZE*2;
-const BUTTON_Y = CANVAS_H-GRID_SIZE;
-const BUTTON_M = 24;
+const BUTTON_W = GRID_SIZE*3;
+const BUTTON_H = GRID_SIZE*2;
+const BUTTON_X = GRID_SIZE*1;
+const BUTTON_Y = CANVAS_H-GRID_SIZE*3;
+const BUTTON_M = GRID_SIZE*0.5;
 
 // for M5
 const NAME_PRE = 'UART';
@@ -62,7 +62,7 @@ let logGraph = [
 		width: LOG_W,
 		height: LOG_H,
 		offset: GRID_SIZE*0.5,
-		max: 300,
+		max: 140,
 		color: 'blue',
 		drawX: 0,
 	},
@@ -88,6 +88,7 @@ function dataChannelFn() {
 	if (dataChannel>=val.length){
 		dataChannel = 0;
 	}
+	this.html('data '+dataChannel);
 }
 function setup() {
 	createCanvas(CANVAS_W, CANVAS_H);
@@ -108,13 +109,14 @@ function setup() {
 	startButton.mousePressed(startFn);
 	connectButton = buttonInit('connect', BUTTON_W, BUTTON_H, BUTTON_X+BUTTON_M+BUTTON_W, BUTTON_Y);
 	connectButton.mousePressed(connectToBle);
-	dataButton = buttonInit('data0', BUTTON_W, BUTTON_H, BUTTON_X+(BUTTON_M+BUTTON_W)*2, BUTTON_Y);
+	dataButton = buttonInit('data 0', BUTTON_W, BUTTON_H, BUTTON_X+(BUTTON_M+BUTTON_W)*2, BUTTON_Y);
 	dataButton.mousePressed(dataChannelFn);
 
 
 	for (let i=0; i<logGraph.length; i++){
 		graphSetup(logGraph[i]);
 	}
+	lineGraph(logGraph[1], 10);
 }
 function buttonInit(text, w, h, x, y) {
 	let button = createButton(text);
@@ -142,6 +144,12 @@ function drawGraph(graph, data) {
 		graph.drawX = 0;
 		graphSetup(graph);
 	}
+}
+function lineGraph(graph, val) {
+	let tY = graph.height - val*(graph.height-graph.offset)/graph.max - graph.offset;
+	graph.graphics.strokeWeight(1);
+	graph.graphics.stroke(255);
+	graph.graphics.line(0, tY, graph.width, tY);
 }
 function draw() {
 	background(48);
@@ -171,8 +179,6 @@ function draw() {
 	text('fps:'+fps, DEBUG_VIEW_X, debugY);
 	debugY += DEBUG_VIEW_H;
 	text('dataRate'+':'+dataRate, DEBUG_VIEW_X, debugY);
-	debugY += DEBUG_VIEW_H;
-	text('data:'+dataIndex, DEBUG_VIEW_X, debugY);
 	debugY += DEBUG_VIEW_H;
 	for (let i=0; i<val.length; i++){
 		text(val[i], DEBUG_VIEW_X, debugY);
@@ -244,7 +250,7 @@ async function connectToBle() {
 		for (let i=0; i<event.target.value.byteLength/2; i++){
 			receivedData[i] = event.target.value.getInt16(i*2, false);
 		}
-//		console.log(id, receivedData);
+//		console.log(receivedData);
 		for (let i=0; i<receivedData.length; i++){
 			val[i] = receivedData[i];
 			dataBuf[dataIndex][i] = val[i];
