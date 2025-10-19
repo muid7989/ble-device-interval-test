@@ -54,6 +54,7 @@ let logGraph = [
 		offset: LOG_H/2,
 		max: 30000,
 		color: 'red',
+		subColor: 'green',
 		drawX: 0,
 	},
 	{
@@ -64,6 +65,7 @@ let logGraph = [
 		offset: GRID_SIZE*0.5,
 		max: 140,
 		color: 'blue',
+		subColor: 'yellow',
 		drawX: 0,
 	},
 ];
@@ -145,6 +147,12 @@ function drawGraph(graph, data) {
 		graphSetup(graph);
 	}
 }
+function drawGraphSub(graph, data) {
+	graph.graphics.strokeWeight(LOG_POINT_SIZE);
+	let tY = graph.height - data*(graph.height-graph.offset)/graph.max - graph.offset;
+	graph.graphics.stroke(graph.subColor);
+	graph.graphics.point(graph.drawX, tY);
+}
 function lineGraph(graph, val) {
 	let tY = graph.height - val*(graph.height-graph.offset)/graph.max - graph.offset;
 	graph.graphics.strokeWeight(1);
@@ -192,7 +200,8 @@ function draw() {
 //		drawGraph(logGraphXg, dataBuf[drawIndex][5]);
 //		drawGraph(logGraphRate, dataBuf[drawIndex][0]);
 		drawGraph(logGraph[0], dataBuf[drawIndex][dataChannel]);
-		drawGraph(logGraph[1], dataBuf[drawIndex][val.length-1]);
+		drawGraphSub(logGraph[1], dataBuf[drawIndex][val.length-1]);
+		drawGraph(logGraph[1], dataBuf[drawIndex][val.length-2]);
 		drawIndex++;
 		if (drawIndex>=DATA_SIZE){
 			drawIndex = 0;
@@ -227,10 +236,6 @@ async function connectToBle() {
 			UART_TX_CHARACTERISTIC_UUID
 		);
 		txCharacteristic.startNotifications();
-		bleTime = millis();
-		bleDataCount = 0;
-		bleIdealTime = 0;
-		bleInterval = 10;
 		txCharacteristic.addEventListener(
 			"characteristicvaluechanged",
 			e => {
@@ -247,10 +252,17 @@ async function connectToBle() {
 	function onTxCharacteristicValueChanged(event) {
 		dataCount++;
 		let receivedData = [];
-		for (let i=0; i<event.target.value.byteLength/2; i++){
+		for (let i=0; i<2; i++){
+			receivedData[i] = event.target.value.getUint16(i*2, true);
+		}
+		for (let i=2; i<event.target.value.byteLength/2; i++){
 			receivedData[i] = event.target.value.getInt16(i*2, false);
 		}
 //		console.log(receivedData);
+		let senseInterval = (receivedData[1]-val[1])/10;
+		if (receivedData[1]<val[1]){
+			senseInterval = (50000+receivedData[1]-val[1])/10;
+		}
 		for (let i=0; i<receivedData.length; i++){
 			val[i] = receivedData[i];
 			dataBuf[dataIndex][i] = val[i];
@@ -259,6 +271,8 @@ async function connectToBle() {
 		val[receivedData.length] = currentTime-prevTime;
 		dataBuf[dataIndex][receivedData.length] = currentTime-prevTime;
 		prevTime = currentTime;
+		val[receivedData.length+1] = senseInterval;
+		dataBuf[dataIndex][receivedData.length+1] = senseInterval;
 		if (logFlag){
 			dataIndex++;
 			if (dataIndex>=DATA_SIZE){
